@@ -1,0 +1,8 @@
+CHAINCODE_ID="auction"
+CONFIG_PATH="/home/ubuntu/network.yaml"
+
+CHANNEL_NAME="demo"
+CHANNEL_USER="admin"
+CHANNEL_ORG="Org1MSP"
+
+

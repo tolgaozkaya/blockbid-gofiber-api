@@ -1,0 +1,556 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "This is the Ihale API server.",
+        "title": "Ihale API",
+        "contact": {},
+        "version": "1"
+    },
+    "basePath": "/api/v1",
+    "paths": {
+        "/ac": {
+            "post": {
+                "description": "Belirli bir ihale ID'si için yapılmış tüm teklifleri açar.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teklifler"
+                ],
+                "summary": "Bir ihale için tüm teklifleri aç",
+                "parameters": [
+                    {
+                        "description": "Bir ihale için tüm teklifleri açma isteği",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/Teklifler.TeklifleriAcRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Başarılı yanıt ile tekliflerin açıldığını belirten mesaj",
+                        "schema": {
+                            "$ref": "#/definitions/Teklifler.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Geçersiz istek",
+                        "schema": {
+                            "$ref": "#/definitions/Teklifler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "İhale bulunamadı",
+                        "schema": {
+                            "$ref": "#/definitions/Teklifler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Sunucu iç hatası",
+                        "schema": {
+                            "$ref": "#/definitions/Teklifler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/listele/{ihaleId}": {
+            "get": {
+                "description": "Belirli bir ihale ID'si için yapılmış tüm tekliflerin detaylarını getirir.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teklifler"
+                ],
+                "summary": "Bir ihale için tüm teklifleri sorgula",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sorgulanan tüm teklifler için ihale ID'si",
+                        "name": "ihaleId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Başarılı yanıt ile tüm teklif detayları",
+                        "schema": {
+                            "$ref": "#/definitions/Teklifler.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Geçersiz istek",
+                        "schema": {
+                            "$ref": "#/definitions/Teklifler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "İhale bulunamadı",
+                        "schema": {
+                            "$ref": "#/definitions/Teklifler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Sunucu iç hatası",
+                        "schema": {
+                            "$ref": "#/definitions/Teklifler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/login": {
+            "post": {
+                "description": "Logs in a user with a username and password.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "kullanicilar"
+                ],
+                "summary": "User login",
+                "parameters": [
+                    {
+                        "description": "Login Request",
+                        "name": "loginRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/Kullanicilar.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "login successful",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Request parsing failed",
+                        "schema": {
+                            "$ref": "#/definitions/Kullanicilar.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials",
+                        "schema": {
+                            "$ref": "#/definitions/Kullanicilar.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/Kullanicilar.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/signup": {
+            "post": {
+                "description": "Yeni bir kullanıcı kaydeder.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "kullanicilar"
+                ],
+                "summary": "Kullanıcı Kaydı",
+                "parameters": [
+                    {
+                        "description": "Kayıt Bilgileri",
+                        "name": "signUpRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/entities.CreateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Kullanıcı başarıyla kaydedildi",
+                        "schema": {
+                            "$ref": "#/definitions/Kullanicilar.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "İstek ayrıştırması başarısız",
+                        "schema": {
+                            "$ref": "#/definitions/Kullanicilar.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Ledger üzerinde kullanıcı kaydedilemedi",
+                        "schema": {
+                            "$ref": "#/definitions/Kullanicilar.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/sorgula/{ihaleId}": {
+            "get": {
+                "description": "Bir ihale için yapılmış belirli bir teklifin detaylarını getirir.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teklifler"
+                ],
+                "summary": "Bir teklifi sorgula",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sorgulanan ihale ID'si",
+                        "name": "ihaleId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Başarılı yanıt ile teklif detayları",
+                        "schema": {
+                            "$ref": "#/definitions/Teklifler.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Geçersiz istek",
+                        "schema": {
+                            "$ref": "#/definitions/Teklifler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Teklif bulunamadı",
+                        "schema": {
+                            "$ref": "#/definitions/Teklifler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Sunucu iç hatası",
+                        "schema": {
+                            "$ref": "#/definitions/Teklifler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teklifyap": {
+            "post": {
+                "description": "Belirli bir ihale için detaylar ile bir teklif sunar.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teklifler"
+                ],
+                "summary": "Bir ihale için teklif yap",
+                "parameters": [
+                    {
+                        "description": "Teklif Detayları",
+                        "name": "teklif",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/Teklifler.TeklifYapRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Başarılı yanıt mesajı ile",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Geçersiz istek hata mesajı",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Sunucu iç hatası hata mesajı",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{userID}": {
+            "put": {
+                "description": "Updates the information for a user by their userID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Update user information",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "userID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User Update Request",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/entities.UpdateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "message: User successfully updated",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "error: Request parsing failed: [error detail]",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "error: Blockchain query failed: [error detail]",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Deletes a user by their unique userID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Delete a user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "userID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "message: Kullanıcı başarıyla silindi\" \"User successfully deleted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "error: [error detail]\" \"Error occurred during user deletion",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "Kullanicilar.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "Kullanicilar.LoginRequest": {
+            "type": "object",
+            "required": [
+                "kullaniciAdi",
+                "sifre"
+            ],
+            "properties": {
+                "kullaniciAdi": {
+                    "type": "string"
+                },
+                "sifre": {
+                    "type": "string"
+                }
+            }
+        },
+        "Kullanicilar.MessageResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "Teklifler.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "Teklifler.MessageResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "Teklifler.TeklifYapRequest": {
+            "type": "object",
+            "properties": {
+                "ihaleId": {
+                    "type": "string"
+                },
+                "teklifBelgeHash": {
+                    "description": "Teklif belgesinin hash değeri",
+                    "type": "string"
+                },
+                "teklifTutari": {
+                    "type": "number"
+                }
+            }
+        },
+        "Teklifler.TeklifleriAcRequest": {
+            "type": "object",
+            "properties": {
+                "ihaleId": {
+                    "type": "string"
+                }
+            }
+        },
+        "entities.CreateUserRequest": {
+            "type": "object",
+            "required": [
+                "dogumTarihi",
+                "eposta",
+                "isim",
+                "kullaniciAdi",
+                "sifre",
+                "soyisim",
+                "tcKimlikNo",
+                "telefon"
+            ],
+            "properties": {
+                "dogumTarihi": {
+                    "description": "YYYY-MM-DD formatında",
+                    "type": "string"
+                },
+                "eposta": {
+                    "type": "string"
+                },
+                "isim": {
+                    "type": "string"
+                },
+                "kullaniciAdi": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 3
+                },
+                "sifre": {
+                    "type": "string",
+                    "minLength": 6
+                },
+                "soyisim": {
+                    "type": "string"
+                },
+                "tcKimlikNo": {
+                    "type": "string"
+                },
+                "telefon": {
+                    "type": "string"
+                }
+            }
+        },
+        "entities.UpdateUserRequest": {
+            "type": "object",
+            "required": [
+                "dogumTarihi",
+                "kullaniciID"
+            ],
+            "properties": {
+                "dogumTarihi": {
+                    "description": "YYYY-MM-DD formatında",
+                    "type": "string"
+                },
+                "eposta": {
+                    "type": "string"
+                },
+                "isim": {
+                    "type": "string"
+                },
+                "kullaniciAdi": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 3
+                },
+                "kullaniciID": {
+                    "description": "Required to identify the user",
+                    "type": "string"
+                },
+                "sifre": {
+                    "type": "string",
+                    "minLength": 6
+                },
+                "soyisim": {
+                    "type": "string"
+                },
+                "telefon": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}
