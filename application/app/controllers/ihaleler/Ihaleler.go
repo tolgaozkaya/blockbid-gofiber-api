@@ -5,6 +5,7 @@ package Ihaleler
 import (
 	"encoding/json"
 	"fmt"
+	"os/exec"
 	"time"
 
 	"blockchain-smart-tender-platform/app/entities"
@@ -213,4 +214,46 @@ func GetHistoryForIhale(c *fiber.Ctx) error {
 
 	// Başarılı yanıt dön
 	return c.JSON(fiber.Map{"message": "Ihale history successfully retrieved", "response": json.RawMessage(resp)})
+}
+
+// HyperledgerInfo stores information about the Hyperledger Fabric network
+type HyperledgerInfo struct {
+	ChannelInformation     string `json:"channel_information"`
+	PeerStatus             string `json:"peer_status"`
+	OrdererNodes           string `json:"orderer_nodes"`
+	CertificateAuthorities string `json:"certificate_authorities"`
+}
+
+func FetchNetworkInfo() (*HyperledgerInfo, error) {
+	info := &HyperledgerInfo{}
+
+	// Fetch channel information
+	channelInfo, err := exec.Command("kubectl", "get", "FabricMainChannel", "demo", "-o", "yaml").Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch channel information: %w", err)
+	}
+	info.ChannelInformation = string(channelInfo)
+
+	// Fetch peer status
+	peerStatus, err := exec.Command("kubectl", "get", "fabricpeers", "-n", "default").Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch peer status: %w", err)
+	}
+	info.PeerStatus = string(peerStatus)
+
+	// Fetch orderer nodes
+	ordererNodes, err := exec.Command("kubectl", "get", "fabricorderernodes", "-n", "default").Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch orderer nodes: %w", err)
+	}
+	info.OrdererNodes = string(ordererNodes)
+
+	// Fetch certificate authorities
+	certificateAuthorities, err := exec.Command("kubectl", "get", "fabriccas", "-n", "default").Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch certificate authorities: %w", err)
+	}
+	info.CertificateAuthorities = string(certificateAuthorities)
+
+	return info, nil
 }

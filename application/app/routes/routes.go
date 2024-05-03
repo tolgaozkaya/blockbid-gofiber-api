@@ -4,11 +4,21 @@ import (
 	Ihaleler "blockchain-smart-tender-platform/app/controllers/ihaleler"
 	Kullanicilar "blockchain-smart-tender-platform/app/controllers/kullanicilar"
 	Teklifler "blockchain-smart-tender-platform/app/controllers/teklifler"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func Routes(app *fiber.App) {
+	// API v1
+
+	app.Get("/network-status", func(c *fiber.Ctx) error {
+		info, err := Ihaleler.FetchNetworkInfo()
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": fmt.Sprintf("Failed to fetch network information: %v", err)})
+		}
+		return c.JSON(info)
+	})
 
 	ihaleGroup := app.Group("/api/v1/ihaleler")
 	{
