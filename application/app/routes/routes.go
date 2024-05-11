@@ -27,6 +27,7 @@ func Routes(app *fiber.App) {
 		ihaleGroup.Get("/query/:ihaleNumarasi", Ihaleler.QueryIhale)
 		ihaleGroup.Get("/list", Ihaleler.ListIhaleler)
 		ihaleGroup.Put("/close/:ihaleNumarasi", Ihaleler.CloseIhale)
+		ihaleGroup.Put("/close", Ihaleler.CheckAndCloseIhales)
 		ihaleGroup.Get("/user", Ihaleler.QueryKullaniciIhaleleri)
 		ihaleGroup.Get("/others", Ihaleler.QueryDigerIhaleler)
 		ihaleGroup.Post("/start/:ihaleNumarasi", Ihaleler.StartIhale)
@@ -43,6 +44,7 @@ func Routes(app *fiber.App) {
 	kullaniciGroup := app.Group("/api/v1/kullanicilar")
 	{
 		kullaniciGroup.Get("/get", Kullanicilar.GetUserByID)
+		kullaniciGroup.Get("/query/:userID", Kullanicilar.QueryUser)
 		kullaniciGroup.Put("/update", Kullanicilar.UpdateUser)
 		kullaniciGroup.Delete("/delete", Kullanicilar.DeleteUser)
 		kullaniciGroup.Get("/userdata", Kullanicilar.GetUserDashboardData)

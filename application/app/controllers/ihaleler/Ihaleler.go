@@ -201,6 +201,20 @@ func CloseIhale(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Teklifler başarıyla açıldı", "result": response})
 }
 
+func CheckAndCloseIhales(c *fiber.Ctx) error {
+	// Call the chaincode function to check and close auctions
+	response, err := queries.Execute(constants.ChaincodeID, "CloseExpiredIhaleler", []string{})
+	if err != nil {
+		return sendErrorResponse(c, fiber.StatusInternalServerError, fmt.Sprintf("Failed to check and close auctions: %v", err))
+	}
+
+	// Return a successful response with the result from the chaincode
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Auctions checked and closed successfully",
+		"result":  response,
+	})
+}
+
 func GetHistoryForIhale(c *fiber.Ctx) error {
 	IhaleId := c.Params("ihaleNumarasi")
 	if IhaleId == "" {

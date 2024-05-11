@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -225,6 +226,32 @@ func (s *SmartContract) QueryTumIhaleler(ctx contractapi.TransactionContextInter
 	return &ihale, nil
 }
 
+func (s *SmartContract) GetIhaleByTeklif(ctx contractapi.TransactionContextInterface, teklifID string) (*Ihale, error) {
+	// Get the bid from the ledger
+	teklifJSON, err := ctx.GetStub().GetState(teklifID)
+	if err != nil {
+		return nil, fmt.Errorf("teklif bulunamadı: %s", err)
+	}
+
+	var teklif Teklif
+	if err := json.Unmarshal(teklifJSON, &teklif); err != nil {
+		return nil, fmt.Errorf("teklif verisi çözümlenirken hata oluştu: %s", err)
+	}
+
+	// Retrieve the associated auction using the auction ID stored in the bid
+	ihaleJSON, err := ctx.GetStub().GetState(teklif.IhaleNumarasi)
+	if err != nil {
+		return nil, fmt.Errorf("ihale bulunamadı: %s", err)
+	}
+
+	var ihale Ihale
+	if err := json.Unmarshal(ihaleJSON, &ihale); err != nil {
+		return nil, fmt.Errorf("ihale verisi çözümlenirken hata oluştu: %s", err)
+	}
+
+	return &ihale, nil
+}
+
 func (s *SmartContract) ListIhaleler(ctx contractapi.TransactionContextInterface) ([]Ihale, error) {
 	startKey := ""
 	endKey := ""
@@ -367,24 +394,35 @@ func (s *SmartContract) ListTekliflerByIhale(ctx contractapi.TransactionContextI
 	return teklifler, nil
 }
 
-func (s *SmartContract) CancelBid(ctx contractapi.TransactionContextInterface, ihaleNumarasi string, kullaniciID string) error {
-	teklifKey, err := ctx.GetStub().CreateCompositeKey("Teklif", []string{ihaleNumarasi, kullaniciID})
+func (s *SmartContract) ListTekliflerByKullanici(ctx contractapi.TransactionContextInterface, kullaniciID string) ([]Teklif, error) {
+	// Kullanıcı ID'sine göre teklifleri bulmak için sorgu dizgisini oluştur
+	queryString := fmt.Sprintf(`{"selector":{"kullaniciID":"%s"}}`, kullaniciID)
+
+	// Seçici kullanarak sorgu sonucunu al
+	resultsIterator, err := ctx.GetStub().GetQueryResult(queryString)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("kullanıcı ID'si ile teklifler alınırken hata oluştu: %s", kullaniciID) // Türkçe hata mesajı
+	}
+	defer resultsIterator.Close()
+
+	var teklifler []Teklif
+	for resultsIterator.HasNext() {
+		response, err := resultsIterator.Next()
+		if err != nil {
+			return nil, fmt.Errorf("bir sonraki teklif alınırken hata oluştu: %s", err) // Türkçe hata mesajı
+		}
+
+		var teklif Teklif
+		// JSON nesnesini Teklif yapısına çözümle
+		if err = json.Unmarshal(response.Value, &teklif); err != nil {
+			return nil, fmt.Errorf("teklif verisi çözümlenirken hata oluştu: %s", err) // Türkçe hata mesajı
+		}
+
+		// Listeye teklifi ekle
+		teklifler = append(teklifler, teklif)
 	}
 
-	teklifJSON, err := ctx.GetStub().GetState(teklifKey)
-	if err != nil || teklifJSON == nil {
-		return fmt.Errorf("teklif bulunamadı")
-	}
-
-	// Teklifi sil
-	err = ctx.GetStub().DelState(teklifKey)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return teklifler, nil
 }
 
 func (s *SmartContract) RegisterUser(ctx contractapi.TransactionContextInterface, kullaniciAdi, sifre, isim, soyisim, eposta, telefon, tcKimlikNo string, dogumTarihi time.Time) error {
@@ -424,7 +462,7 @@ func (s *SmartContract) RegisterUser(ctx contractapi.TransactionContextInterface
 	return ctx.GetStub().PutState(kullaniciID, kullaniciJSON)
 }
 
-func (s *SmartContract) UpdateUser(ctx contractapi.TransactionContextInterface, kullaniciID string, yeniKullaniciAdi, yeniEposta, yeniTelefon string) error {
+func (s *SmartContract) UpdateUser(ctx contractapi.TransactionContextInterface, kullaniciID, yeniKullaniciAdi, yeniEposta, yeniTelefon, yeniSifre string) error {
 	// Mevcut kullanıcı verilerini ledger'dan çek
 	kullaniciData, err := ctx.GetStub().GetState(kullaniciID)
 	if err != nil {
@@ -439,7 +477,7 @@ func (s *SmartContract) UpdateUser(ctx contractapi.TransactionContextInterface, 
 		return fmt.Errorf("kullanıcı bilgileri okunamadı: %s", err.Error())
 	}
 
-	// Kullanıcı adı, e-posta ve telefon numarasını güncelle
+	// Kullanıcı adı, e-posta, telefon numarası ve şifre güncelle
 	if yeniKullaniciAdi != "" {
 		kullanici.KullaniciAdi = yeniKullaniciAdi
 	}
@@ -448,6 +486,9 @@ func (s *SmartContract) UpdateUser(ctx contractapi.TransactionContextInterface, 
 	}
 	if yeniTelefon != "" {
 		kullanici.Telefon = yeniTelefon
+	}
+	if yeniSifre != "" {
+		kullanici.Sifre = yeniSifre
 	}
 
 	// Güncellenmiş kullanıcı verilerini JSON'a çevir
@@ -642,34 +683,143 @@ func (s *SmartContract) CloseIhale(ctx contractapi.TransactionContextInterface, 
 }
 
 func (s *SmartContract) CheckAndCloseIhales(ctx contractapi.TransactionContextInterface) error {
-	currentTime := time.Now()
-	queryString := `{"selector":{"durum":"ACIK"}}`
+	// Get the current timestamp from the transaction context
+	stub := ctx.GetStub()
+	txTimestamp, err := stub.GetTxTimestamp()
+	if err != nil {
+		return fmt.Errorf("timestamp alınırken hata oluştu: %s", err)
+	}
+	currentTime := time.Unix(txTimestamp.Seconds, int64(txTimestamp.Nanos))
+
+	queryString := `{"selector":{"durum":"ACIK", "ihaleBitisTarihi":{"$lt": ` + strconv.FormatInt(currentTime.Unix(), 10) + `}}}` // Query only open auctions that are past the end time
+
 	resultsIterator, err := ctx.GetStub().GetQueryResult(queryString)
 	if err != nil {
-		return err
+		return fmt.Errorf("sorgulama sırasında hata oluştu: %s", err)
 	}
 	defer resultsIterator.Close()
 
 	for resultsIterator.HasNext() {
 		queryResponse, err := resultsIterator.Next()
 		if err != nil {
-			return err
-		}
-		var ihale Ihale
-		err = json.Unmarshal(queryResponse.Value, &ihale)
-		if err != nil {
-			continue
+			return fmt.Errorf("sonraki öğeyi alırken hata oluştu: %s", err)
 		}
 
-		if currentTime.After(ihale.IhaleBitisTarihi) {
-			ihale.Durum = IhaleDurumuKapali
-			updatedIhaleJSON, err := json.Marshal(ihale)
+		var ihale Ihale
+		if err := json.Unmarshal(queryResponse.Value, &ihale); err != nil {
+			return fmt.Errorf("ihale verisi çözümlenirken hata oluştu: %s", err)
+		}
+
+		// Retrieve all bids for the auction
+		teklifIterator, err := ctx.GetStub().GetStateByPartialCompositeKey("Teklif", []string{ihale.IhaleNumarasi})
+		if err != nil {
+			return fmt.Errorf("teklifler alınırken hata oluştu: %s", err)
+		}
+		defer teklifIterator.Close()
+
+		var highestBid Teklif
+		highestBidPrice := float64(0)
+		for teklifIterator.HasNext() {
+			teklifResponse, err := teklifIterator.Next()
 			if err != nil {
-				continue
+				return fmt.Errorf("teklif sırasında hata oluştu: %s", err)
 			}
-			ctx.GetStub().PutState(ihale.IhaleNumarasi, updatedIhaleJSON)
+
+			var teklif Teklif
+			if err := json.Unmarshal(teklifResponse.Value, &teklif); err != nil {
+				return fmt.Errorf("teklif verisi çözümlenirken hata oluştu: %s", err)
+			}
+
+			if teklif.Fiyat > highestBidPrice {
+				highestBidPrice = teklif.Fiyat
+				highestBid = teklif
+			}
+		}
+
+		// Update the auction with the winner and close it
+		ihale.KazananTeklifID = highestBid.KullaniciID
+		ihale.Durum = IhaleDurumuKapali
+		ihaleUpdatedJSON, err := json.Marshal(ihale)
+		if err != nil {
+			return fmt.Errorf("ihale güncellenirken hata oluştu: %s", err)
+		}
+
+		// Save updated auction to the ledger
+		if err := ctx.GetStub().PutState(ihale.IhaleNumarasi, ihaleUpdatedJSON); err != nil {
+			return fmt.Errorf("ihale durumu kaydedilirken hata oluştu: %s", err)
 		}
 	}
+
+	return nil
+}
+
+func (s *SmartContract) CloseExpiredIhaleler(ctx contractapi.TransactionContextInterface) error {
+	stub := ctx.GetStub()
+	currentTime := time.Now() // Get the current time to compare with auction end times
+
+	// Query to find all open auctions that have passed their end time
+	queryString := fmt.Sprintf(`{"selector":{"durum":"ACIK", "ihaleBitisTarihi":{"$lt":"%s"}}}`, currentTime.Format(time.RFC3339))
+	resultsIterator, err := stub.GetQueryResult(queryString)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve expired auctions: %s", err)
+	}
+	defer resultsIterator.Close()
+
+	// Iterate over expired auctions to close them
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next()
+		if err != nil {
+			return fmt.Errorf("error iterating over expired auctions: %s", err)
+		}
+
+		var ihale Ihale
+		if err := json.Unmarshal(queryResponse.Value, &ihale); err != nil {
+			return fmt.Errorf("error unmarshalling auction data: %s", err)
+		}
+
+		// Determine the highest bid for the auction
+		var highestBid *Teklif
+		var highestBidPrice float64 = 0
+		bidsIterator, err := stub.GetStateByPartialCompositeKey("Teklif", []string{ihale.IhaleNumarasi})
+		if err != nil {
+			return fmt.Errorf("error retrieving bids for auction %s: %s", ihale.IhaleNumarasi, err)
+		}
+		defer bidsIterator.Close()
+
+		for bidsIterator.HasNext() {
+			response, err := bidsIterator.Next()
+			if err != nil {
+				return fmt.Errorf("error iterating bids: %s", err)
+			}
+
+			var bid Teklif
+			if err := json.Unmarshal(response.Value, &bid); err != nil {
+				continue // Skip bad data
+			}
+
+			if bid.Fiyat > highestBidPrice {
+				highestBidPrice = bid.Fiyat
+				highestBid = &bid
+			}
+		}
+
+		// Update the auction's status and, if a bid was found, set the winning bid ID
+		ihale.Durum = IhaleDurumuKapali
+		if highestBid != nil {
+			ihale.KazananTeklifID = highestBid.KullaniciID
+		}
+
+		// Marshal the updated auction and save it back to the ledger
+		ihaleJSON, err := json.Marshal(ihale)
+		if err != nil {
+			return fmt.Errorf("error marshalling updated auction data: %s", err)
+		}
+		err = stub.PutState(ihale.IhaleNumarasi, ihaleJSON)
+		if err != nil {
+			return fmt.Errorf("error updating auction status on the ledger: %s", err)
+		}
+	}
+
 	return nil
 }
 
@@ -800,56 +950,6 @@ func (s *SmartContract) GetHistoryForTeklif(ctx contractapi.TransactionContextIn
 	}
 
 	return history, nil
-}
-
-func (s *SmartContract) GetUserDashboardData(ctx contractapi.TransactionContextInterface, kullaniciID string) (interface{}, error) {
-	// Define the structure to hold the dashboard data
-	dashboardData := struct {
-		Ihaleler  []Ihale  `json:"ihaleler"`  // Tenders created by the user
-		Teklifler []Teklif `json:"teklifler"` // Bids made by the user
-	}{}
-
-	ihaleQueryString := fmt.Sprintf(`{"selector":{"olusturanKullaniciID":"%s"}}`, kullaniciID)
-	ihaleQueryResultsIterator, err := ctx.GetStub().GetQueryResult(ihaleQueryString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get query result for ihale: %v", err)
-	}
-	defer ihaleQueryResultsIterator.Close()
-
-	for ihaleQueryResultsIterator.HasNext() {
-		queryResponse, err := ihaleQueryResultsIterator.Next()
-		if err != nil {
-			return nil, err
-		}
-		var ihale Ihale
-		err = json.Unmarshal(queryResponse.Value, &ihale)
-		if err != nil {
-			return nil, err
-		}
-		dashboardData.Ihaleler = append(dashboardData.Ihaleler, ihale)
-	}
-
-	teklifQueryString := fmt.Sprintf(`{"selector":{"kullaniciID":"%s"}}`, kullaniciID)
-	teklifQueryResultsIterator, err := ctx.GetStub().GetQueryResult(teklifQueryString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get query result for teklif: %v", err)
-	}
-	defer teklifQueryResultsIterator.Close()
-
-	for teklifQueryResultsIterator.HasNext() {
-		queryResponse, err := teklifQueryResultsIterator.Next()
-		if err != nil {
-			return nil, err
-		}
-		var teklif Teklif
-		err = json.Unmarshal(queryResponse.Value, &teklif)
-		if err != nil {
-			return nil, err
-		}
-		dashboardData.Teklifler = append(dashboardData.Teklifler, teklif)
-	}
-
-	return dashboardData, nil
 }
 
 func main() {

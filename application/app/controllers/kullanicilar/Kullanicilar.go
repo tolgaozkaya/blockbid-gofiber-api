@@ -461,3 +461,28 @@ func CreateDockerImage(c *fiber.Ctx) error {
 	log.Printf("Docker imajı başarıyla oluşturuldu ve Docker Hub'a yüklendi: %s/%s:%s\n", dockerKullanıcıAdı, dockerImajAdı, dockerEtiket)
 	return nil
 }
+
+func QueryUser(c *fiber.Ctx) error {
+	userID := c.Params("userID")
+	if userID == "" {
+		return sendErrorResponse(c, fiber.StatusBadRequest, "User ID is required")
+	}
+
+	response, err := queries.Query(constants.ChaincodeID, "QueryUser", []string{userID})
+	if err != nil {
+		return sendErrorResponse(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	var user entities.User
+	err = json.Unmarshal(response, &user)
+	if err != nil {
+		return sendErrorResponse(c, fiber.StatusInternalServerError, "Error parsing user data")
+	}
+
+	return c.Status(fiber.StatusOK).JSON(user)
+}
+
+// sendErrorResponse, hata mesajlarını tutarlı bir formatla göndermek için yardımcı bir fonksiyondur.
+func sendErrorResponse(c *fiber.Ctx, status int, message string) error {
+	return c.Status(status).JSON(fiber.Map{"error": message})
+}

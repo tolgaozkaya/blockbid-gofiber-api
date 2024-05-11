@@ -2,7 +2,7 @@ package constants
 
 const (
 	// Ihale (Tender) related operations
-	IHALE_OLUSTUR_FCN               = "CreateIhale2"
+	IHALE_OLUSTUR_FCN               = "CreateIhale"
 	IHALE_GUNCELLE_FCN              = "UpdateIhale"
 	IHALE_SORGULA_FCN               = "QueryTumIhaleler"
 	IHALE_LISTELE_FCN               = "ListIhaleler"
@@ -11,7 +11,7 @@ const (
 
 	IHALE_BASLAT_FCN    = "StartIhale"
 	IHALE_SURE_EKLE_FCN = "ExtendIhale"
-	IHALE_SONLANDIR_FCN = "CloseIhale"
+	IHALE_SONLANDIR_FCN = "CloseExpiredIhaleler"
 
 	// Teklif (Bid) related operations
 	TEKLIF_YAP_FCN        = "MakeTeklif"
